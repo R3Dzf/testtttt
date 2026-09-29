@@ -1,0 +1,1 @@
+Trigger ntfy test notification.
