@@ -10,6 +10,9 @@ on:
         required: false
         default: false
         type: boolean
+  push:
+    paths:
+      - "trigger-test.txt"
 
 permissions:
   contents: write
@@ -41,7 +44,7 @@ jobs:
         run: python send_ntfy.py
 
       - name: Send ntfy test notification
-        if: github.event_name == 'workflow_dispatch' && inputs.send_test == true
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.send_test == true)
         env:
           NTFY_TEST: "true"
         run: python send_ntfy.py
