@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+    inputs:
+      test_whatsapp:
+        description: "Send a WhatsApp test message"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -31,6 +37,12 @@ jobs:
       - name: Check KA171 Notifications
         id: check
         run: python monitor.py
+
+      - name: Send manual WhatsApp test
+        if: github.event_name == 'workflow_dispatch' && inputs.test_whatsapp == true && env.WHATSAPP_PHONE != '' && env.CALLMEBOT_APIKEY != ''
+        env:
+          KA171_DETAILS: "✅ Test successful. Your UC KA171 WhatsApp monitor is working."
+        run: python send_whatsapp.py
 
       - name: Send WhatsApp alert when notifications change
         if: steps.check.outputs.changed == 'true' && env.WHATSAPP_PHONE != '' && env.CALLMEBOT_APIKEY != ''
