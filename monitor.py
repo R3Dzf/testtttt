@@ -21,78 +21,47 @@ def extract_notifications(html: str):
 
     heading = None
     for tag in soup.find_all(["h1", "h2", "h3", "h4", "strong"]):
-        if normalize_space(tag.get_text(" ", strip=True)).lower() == "notifications":
+        label = normalize_space(tag.get_text(" ", strip=True))
+        # The site currently renders the heading as "📢 Notifications",
+        # so use a contains-match instead of requiring an exact match.
+        if "notifications" in label.lower() and len(label) < 100:
             heading = tag
             break
 
     if heading is None:
         raise RuntimeError("Could not find the Notifications heading")
 
-    container = heading.parent
-    candidates = []
+    text_parts = []
+    links = []
+    footer_labels = {"news", "contact", "site map", "relevant documents", "sign in"}
 
-    # Prefer a nearby block that contains the actual notification text.
-    for parent in [heading.parent, heading.parent.parent if heading.parent else None,
-                   heading.parent.parent.parent if heading.parent and heading.parent.parent else None]:
-        if not parent:
+    # Walk forward from the Notifications heading. The Notifications block is
+    # the last content section on this page, so stop as soon as the footer starts.
+    for element in heading.find_all_next():
+        if element is heading:
             continue
-        text = normalize_space(parent.get_text(" ", strip=True))
-        if "No notifications published yet" in text or "2026-2027 academic year" in text:
-            container = parent
+
+        text = normalize_space(element.get_text(" ", strip=True))
+        lower = text.lower()
+
+        if element.name == "a" and lower in footer_labels:
             break
 
-    # Collect useful text and links from the selected notification area.
-    text_parts = []
-    for tag in container.find_all(["h1", "h2", "h3", "h4", "p", "div", "span", "a", "li"]):
-        text = normalize_space(tag.get_text(" ", strip=True))
-        if not text:
-            continue
-        if text.lower() == "notifications":
-            continue
-        if text not in text_parts and len(text) < 1000:
-            text_parts.append(text)
+        if element.name in ["h1", "h2"] and text and "notifications" not in lower:
+            break
 
-    # Fallback: walk forward from the heading until the next major section.
-    if not any("notification" in t.lower() or "2026-2027" in t for t in text_parts):
-        text_parts = []
-        for element in heading.find_all_next():
-            if element is heading:
-                continue
-            if element.name in ["h1", "h2"]:
-                label = normalize_space(element.get_text(" ", strip=True)).lower()
-                if label and label != "notifications":
-                    break
-            if element.name in ["h3", "h4", "p", "a", "li"]:
-                text = normalize_space(element.get_text(" ", strip=True))
-                if text and text not in text_parts:
-                    text_parts.append(text)
+        if element.name in ["h3", "h4", "p", "li"]:
+            if text and text not in text_parts:
+                text_parts.append(text)
 
-    links = []
-    for a in container.find_all("a", href=True):
-        href = urljoin(URL, a["href"].strip())
-        label = normalize_space(a.get_text(" ", strip=True)) or href
-        item = {"text": label, "url": href}
-        if item not in links:
-            links.append(item)
-
-    # Keep only the most relevant visible text when the container is broad.
-    relevant = []
-    for text in text_parts:
-        lower = text.lower()
-        if (
-            "no notifications published yet" in lower
-            or "notifications for the 2026-2027 academic year" in lower
-            or "provisional" in lower
-            or "resolution" in lower
-            or "selected" in lower
-            or "notification" in lower
-            or "2026-2027" in lower
-        ):
-            if text not in relevant:
-                relevant.append(text)
-
-    if relevant:
-        text_parts = relevant
+        if element.name == "a" and element.get("href"):
+            href = urljoin(URL, element["href"].strip())
+            label = text or href
+            item = {"text": label, "url": href}
+            if item not in links:
+                links.append(item)
+            if label and label not in text_parts:
+                text_parts.append(label)
 
     text = "\n".join(text_parts).strip()
     if not text:
@@ -141,7 +110,7 @@ def write_github_outputs(changed: bool, current):
 
 def main():
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; UC-KA171-Monitor/1.0; +https://github.com/R3Dzf/testtttt)"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36"
     }
 
     response = requests.get(URL, headers=headers, timeout=30)
