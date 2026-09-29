@@ -37,11 +37,11 @@ def main():
         return
 
     message = (
-        "A change was detected in the University of Cantabria KA171 Notifications section.\n\n"
+        "🚨 A change was detected in the University of Cantabria KA171 Notifications section.\n\n"
         f"{details or 'A new notification was detected.'}\n\n"
         "Tap this notification to open the official page."
     )
-    send_ntfy("🚨 UC KA171 UPDATE", message)
+    send_ntfy("UC KA171 UPDATE", message)
 
 
 if __name__ == "__main__":
