@@ -12,6 +12,9 @@ permissions:
 jobs:
   monitor:
     runs-on: ubuntu-latest
+    env:
+      WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+      CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
 
     steps:
       - name: Checkout repository
@@ -29,15 +32,21 @@ jobs:
         id: check
         run: python monitor.py
 
-      - name: Create GitHub issue when notifications change
-        if: steps.check.outputs.changed == 'true'
+      - name: Send WhatsApp alert when notifications change
+        if: steps.check.outputs.changed == 'true' && env.WHATSAPP_PHONE != '' && env.CALLMEBOT_APIKEY != ''
+        env:
+          KA171_DETAILS: ${{ steps.check.outputs.details }}
+        run: python send_whatsapp.py
+
+      - name: Create GitHub issue if WhatsApp is not configured yet
+        if: steps.check.outputs.changed == 'true' && (env.WHATSAPP_PHONE == '' || env.CALLMEBOT_APIKEY == '')
         uses: actions/github-script@v7
         env:
           DETAILS: ${{ steps.check.outputs.details }}
         with:
           script: |
             const details = process.env.DETAILS || 'The Notifications section changed.';
-            const body = `@R3Dzf\n\nThe University of Cantabria KA171 **Notifications** section has changed.\n\n${details}\n\nPage: https://web.unican.es/en/Studying/Pages/KA171-Call-2026.aspx`;
+            const body = `@R3Dzf\n\nThe University of Cantabria KA171 **Notifications** section has changed.\n\n${details}\n\nWhatsApp alerting is not configured yet. Add the repository secrets WHATSAPP_PHONE and CALLMEBOT_APIKEY.\n\nPage: https://web.unican.es/en/Studying/Pages/KA171-Call-2026.aspx`;
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
