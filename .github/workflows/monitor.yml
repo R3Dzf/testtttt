@@ -1,0 +1,56 @@
+name: Monitor UC KA171 Notifications
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check KA171 Notifications
+        id: check
+        run: python monitor.py
+
+      - name: Create GitHub issue when notifications change
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        env:
+          DETAILS: ${{ steps.check.outputs.details }}
+        with:
+          script: |
+            const details = process.env.DETAILS || 'The Notifications section changed.';
+            const body = `@R3Dzf\n\nThe University of Cantabria KA171 **Notifications** section has changed.\n\n${details}\n\nPage: https://web.unican.es/en/Studying/Pages/KA171-Call-2026.aspx`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 UC KA171 Notifications updated',
+              body
+            });
+
+      - name: Save latest state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update KA171 notification state"
+            git push
+          fi
