@@ -1,1 +1,1 @@
-Trigger ntfy test notification - retry 3.
+Trigger simulated KA171 change - 2026-09-29.
