@@ -1,1 +1,1 @@
-Trigger ntfy test notification.
+Trigger ntfy test notification - retry 2.
