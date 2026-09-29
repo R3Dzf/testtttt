@@ -1,1 +1,1 @@
-Trigger simulated KA171 change - 2026-09-29.
+Trigger simulated KA171 change - retry after ntfy fix.
