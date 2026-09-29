@@ -5,22 +5,18 @@ on:
     - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
-      test_whatsapp:
-        description: "Send a WhatsApp test message"
+      send_test:
+        description: "Send a test ntfy notification"
         required: false
         default: false
         type: boolean
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    env:
-      WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
-      CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
 
     steps:
       - name: Checkout repository
@@ -38,33 +34,17 @@ jobs:
         id: check
         run: python monitor.py
 
-      - name: Send manual WhatsApp test
-        if: github.event_name == 'workflow_dispatch' && inputs.test_whatsapp == true && env.WHATSAPP_PHONE != '' && env.CALLMEBOT_APIKEY != ''
-        env:
-          KA171_DETAILS: "✅ Test successful. Your UC KA171 WhatsApp monitor is working."
-        run: python send_whatsapp.py
-
-      - name: Send WhatsApp alert when notifications change
-        if: steps.check.outputs.changed == 'true' && env.WHATSAPP_PHONE != '' && env.CALLMEBOT_APIKEY != ''
+      - name: Send ntfy alert when notifications change
+        if: steps.check.outputs.changed == 'true'
         env:
           KA171_DETAILS: ${{ steps.check.outputs.details }}
-        run: python send_whatsapp.py
+        run: python send_ntfy.py
 
-      - name: Create GitHub issue if WhatsApp is not configured yet
-        if: steps.check.outputs.changed == 'true' && (env.WHATSAPP_PHONE == '' || env.CALLMEBOT_APIKEY == '')
-        uses: actions/github-script@v7
+      - name: Send ntfy test notification
+        if: github.event_name == 'workflow_dispatch' && inputs.send_test == true
         env:
-          DETAILS: ${{ steps.check.outputs.details }}
-        with:
-          script: |
-            const details = process.env.DETAILS || 'The Notifications section changed.';
-            const body = `@R3Dzf\n\nThe University of Cantabria KA171 **Notifications** section has changed.\n\n${details}\n\nWhatsApp alerting is not configured yet. Add the repository secrets WHATSAPP_PHONE and CALLMEBOT_APIKEY.\n\nPage: https://web.unican.es/en/Studying/Pages/KA171-Call-2026.aspx`;
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🚨 UC KA171 Notifications updated',
-              body
-            });
+          NTFY_TEST: "true"
+        run: python send_ntfy.py
 
       - name: Save latest state
         run: |
